@@ -226,10 +226,12 @@ void ofApp::draw() {
 
 	// GUI display
 	if (bGUIshow) {
-		// ofNoFill();
-		// ofDisableDepthTest();
+		ofNoFill();
+		ofDisableDepthTest();
 		gui.draw();
+		ofEnableDepthTest();
 	}
+
 
 }
 
