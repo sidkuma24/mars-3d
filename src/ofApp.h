@@ -158,6 +158,8 @@ public:
 	void saveEditPoints();
 	void loadEditPoints();
 	string filepath = "control_points.txt";
+
+	bool roverbbox(Box& bbox);
 };
 
 
