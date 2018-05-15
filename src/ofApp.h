@@ -71,6 +71,8 @@ public:
 
 	bool mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point);
 
+	void getDragCoordinates();
+	void renderPath();
 	
 	ofxAssimpModelLoader mars, rover;
 	ofLight light;
@@ -114,9 +116,9 @@ public:
 	// log file
 	ofstream logfile;
 
-	bool pointSelected(TreeNode& tree, const ofMesh& mesh);	
+	bool doPointSelection(TreeNode& tree, const ofMesh& mesh);
 	bool bRoverSelected = false;
-	bool terrainselected();
+	bool isTerrainSelected();
 	vector<ofPoint> pointsArray;
 	vector<Box> pointBoxes;
 	
@@ -124,7 +126,7 @@ public:
 	ofPolyline path;
 	bool pathSet = false;
 	ofVboMesh tessellation;
-	void translate();
+	void translateRover();
 	ofVec3f nextPoint;
 	int prevIndex = -1;
 	int pathTotalLength;
@@ -152,11 +154,12 @@ public:
 
 	ofxFloatSlider speed;
 	ofxPanel gui;
-	bool bGUIshow = true;
-	void ofToggleGUI();
+	bool bShowGUI = true;
 
+	void ofToggleGUI();
 	void saveEditPoints();
 	void loadEditPoints();
+
 	string filepath = "control_points.txt";
 };
 

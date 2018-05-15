@@ -1,4 +1,3 @@
-
 //--------------------------------------------------------------
 //
 //  Kevin M. Smith
@@ -22,7 +21,6 @@
 //  Student Name:  Siddharth Kumar
 //  Date:          2018-05-12
 
-
 /*******************************************************************************************
  * Key Bindings:
  *	'p' - Generate the paths and animate the rover.
@@ -37,19 +35,23 @@
 #include "ofApp.h"
 #include "string"
 #include "Util.h"
-#include <ctime>    // For time()
-#include <cstdlib>  // For srand() and rand()
-#include <vector>
+#include <ctime>    // For time()#include <cstdlib>  // For srand() and rand()#include <vector>using namespace std;
 
-using namespace std;
-
+#include <ctime>
+#include <chrono>
 //--------------------------------------------------------------
 // setup scene, lighting, state and load geometry
 //
 void ofApp::setup() {
 
-    logfile.open("mars3D.log");
-    logfile << "Started log file:\n";
+	string version = ".4.1.";
+	chrono::system_clock::time_point time = chrono::system_clock::now();
+	time_t tt;
+	tt = chrono::system_clock::to_time_t(time);
+	string sttime = ctime(&tt);
+	string logfilename = "mars3D.log" + version + sttime;
+	logfile.open(logfilename);
+	logfile << "Started log file:\n";
 
 	bWireframe = false;
 	bDisplayPoints = false;
@@ -60,7 +62,10 @@ void ofApp::setup() {
 	//	ofSetWindowShape(1024, 768);
 
 	// Camera setup
-	cam.setDistance(10);
+	ofVec3f camAxis = ofPoint(0, 0, 1) - ofPoint(0, 0, 0);
+	cam.setDistance(20);
+	cam.setPosition(0,0,10);
+	cam.lookAt(ofPoint(0,0,0));
 	cam.setNearClip(.1);
 	cam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
 	cam.disableMouseInput();
@@ -87,6 +92,8 @@ void ofApp::setup() {
 	cameraNo = 0;
 	logfile << "INFO: Camera 3 Setup complete\n";
 
+	//god-cam setup
+
 	ofSetVerticalSync(true);
 	cam.disableMouseInput();
 	ofEnableSmoothing();
@@ -107,7 +114,7 @@ void ofApp::setup() {
 	//myTextFile = ofFile(filePath);
 
 	gui.setup();
-	gui.add(speed.setup("Speed", 0.02,0.01,0.1));
+	gui.add(speed.setup("Speed", 0.02, 0.01, 0.1));
 	logfile << "INFO: GUI added to screen \n";
 
 	// set filepath, to save the control points
@@ -120,11 +127,14 @@ void ofApp::setup() {
 }
 
 //--------------------------------------------------------------
-// incrementally update scene (animation)
-//
+/*
+ * adding animation to the rover and the rover cam
+ *
+ */
+
 void ofApp::update() {
 	if (pathSet && bRoverLoaded) {
-		translate();
+		translateRover();
 	}
 
 	if (bCamPos)
@@ -133,7 +143,7 @@ void ofApp::update() {
 //--------------------------------------------------------------
 void ofApp::draw() {
 	ofBackground(ofColor::black);
-		
+
 	//cam.begin();
 	cameraList[cameraNo].begin();
 
@@ -144,11 +154,12 @@ void ofApp::draw() {
 		mars.drawWireframe();
 		if (bRoverLoaded) {
 			rover.drawWireframe();
-			if (!bTerrainSelected) drawAxis(rover.getPosition());
+			if (!bTerrainSelected)
+				drawAxis(rover.getPosition());
 		}
-		if (bTerrainSelected) drawAxis(ofVec3f(0, 0, 0));
-	}
-	else {
+		if (bTerrainSelected)
+			drawAxis(ofVec3f(0, 0, 0));
+	} else {
 		ofEnableLighting();              // shaded mode
 		mars.drawFaces();
 
@@ -164,13 +175,14 @@ void ofApp::draw() {
 				drawBox(boundingBox);
 
 				/*
-				ofNoFill();
-				ofSetColor(ofColor::white);
-				drawBox(boundingBox);
-				*/
+				 ofNoFill();
+				 ofSetColor(ofColor::white);
+				 drawBox(boundingBox);
+				 */
 			}
 		}
-		if (bTerrainSelected) drawAxis(ofVec3f(0, 0, 0));
+		if (bTerrainSelected)
+			drawAxis(ofVec3f(0, 0, 0));
 	}
 
 	if (bDisplayPoints) {                // display points as an option    
@@ -180,43 +192,26 @@ void ofApp::draw() {
 	}
 
 	// highlight selected point (draw sphere around selected point)
-	//
 	if (bPointSelected) {
 		ofSetColor(ofColor::blue);
 		for (int i = 0; i < pointsArray.size(); i++)
 			ofDrawSphere(pointsArray[i], .1);
-
-		//Boxes for spheres
-
-		//for (int i = 0; i < pointBoxes.size(); i++)
-		//drawBox(pointBoxes[i]);
 	}
 
 	// Sphere box not drawn for easy view
 	// Display coordinates upon selection of a sphere
 
 	if (bDragPoint && !bRoverSelected) {
-		ofNoFill();
-		ofSetColor(ofColor::white);
-		drawBox(pointBoxes[dragPoint]);
-		string position = to_string(pointsArray[dragPoint].x) + "," + to_string(pointsArray[dragPoint].y) + "," + to_string(pointsArray[dragPoint].z);
-		ofDrawBitmapString(position, pointsArray[dragPoint].x, pointsArray[dragPoint].y);
+		getDragCoordinates();
+		ofSetColor(ofColor::blue);
+		ofDrawSphere(selectedPoint, .1);
+
 	}
 
 	// Generate Path upon pressing 'p' and render said path.
 	if (pathSet) {
-		path.clear();
-		if (pointsArray.size() < 1)
-			return;
-		path.addVertex(pointsArray[0]);
-		path.curveTo(pointsArray[0]);
-		for (int i = 1; i<pointsArray.size(); i++) {
-			path.addVertex(pointsArray[i]);
-			path.curveTo(pointsArray[i].x, pointsArray[i].y, pointsArray[i].z);
-		}
-		path.curveTo(pointsArray.back());
-		path.draw();
-		pathTotalLength = path.getLengthAtIndex(pointsArray.size() - 1);
+		renderPath();
+
 	}
 
 	ofPopMatrix();
@@ -224,19 +219,77 @@ void ofApp::draw() {
 	cameraList[cameraNo].end();
 
 	// GUI display
-	if(bGUIshow){
-		// ofNoFill();
+	if (bShowGUI) {
+//		 ofNoFill();
 		// ofDisableDepthTest();
 		gui.draw();
 	}
 
 }
 
+void ofApp::getDragCoordinates() {
+	ofNoFill();
+	ofSetColor(ofColor::white);
+	drawBox(pointBoxes[dragPoint]);
+	string position = to_string(pointsArray[dragPoint].x) + ","
+			+ to_string(pointsArray[dragPoint].y) + ","
+			+ to_string(pointsArray[dragPoint].z);
+	ofDrawBitmapString(position, pointsArray[dragPoint].x,
+			pointsArray[dragPoint].y);
+}
+
+void ofApp::renderPath() {
+	path.clear();
+	if (pointsArray.size() < 1)
+		return;
+	path.addVertex(pointsArray[0]);
+	path.curveTo(pointsArray[0]);
+	for (int i = 1; i < pointsArray.size(); i++) {
+		path.addVertex(pointsArray[i]);
+		path.curveTo(pointsArray[i].x, pointsArray[i].y, pointsArray[i].z);
+	}
+	path.curveTo(pointsArray.back());
+	path.draw();
+	pathTotalLength = path.getLengthAtIndex(pointsArray.size() - 1);
+}
+
 // Move the rover. Controlled in update()
-void ofApp::translate() {
+//void ofApp::translateRover() {
+//
+//	bRoverSelected = false;
+//	currentPosition = currentPosition + speed;		// Current position along the path
+//
+//	ofVec3f direction;								//If current position exceeds path length, reset the current postion to starting point of path
+//	if (currentPosition >= pathTotalLength) {
+//		currentPosition = 0;
+//	}
+//
+//	int index = path.getIndexAtLength(currentPosition);
+//	if (index != prevIndex) {
+//
+//		ofVec3f roverPosition = rover.getPosition();
+//		nextPoint = path.getPointAtLength(currentPosition);
+//		rover.setPosition(nextPoint.x, nextPoint.y, nextPoint.z);
+//		direction = roverPosition - nextPoint;
+//		ofPoint axis(ofPoint(0.0, 1.0, 0.0));
+//		int rotations = rover.getNumRotations();
+//
+//		// Calculate angle for orientation.
+//		float m = ofVec3f(0, 0, -1).normalize().dot(direction.normalize());
+//		float angle = acos(m) * 180.0 / PI;
+//		float rotateAngle = path.getAngleAtIndex(index);
+//		rover.setRotation(0, angle, 0, 1, 0);
+//		prevIndex = index;
+//	}
+//	// Get the next point on the path based on current position. Increments subsequently
+//	//nextPoint = path.getPointAtLength(currentPosition);
+//	//rover.setPosition(nextPoint.x, nextPoint.y, nextPoint.z);
+//}
+
+void ofApp::translateRover() {
 
 	bRoverSelected = false;
-	currentPosition = currentPosition + speed;		// Current position along the path
+	currentPosition = currentPosition + speed;// Current position along the path
 
 	//If current position exceeds path length, reset the current postion to starting point of path
 	if (currentPosition >= pathTotalLength) {
@@ -282,7 +335,6 @@ void ofApp::drawAxis(ofVec3f location) {
 	ofSetColor(ofColor(255, 0, 0));
 	ofDrawLine(ofPoint(0, 0, 0), ofPoint(1, 0, 0));
 
-
 	// Y Axis
 	ofSetColor(ofColor(0, 255, 0));
 	ofDrawLine(ofPoint(0, 0, 0), ofPoint(0, 1, 0));
@@ -294,13 +346,14 @@ void ofApp::drawAxis(ofVec3f location) {
 	ofPopMatrix();
 }
 
-
 void ofApp::keyPressed(int key) {
 	switch (key) {
 	case 'C':
 	case 'c':
-		if (cameraList[0].getMouseInputEnabled()) cameraList[0].disableMouseInput();
-		else cameraList[0].enableMouseInput();
+		if (cameraList[0].getMouseInputEnabled())
+			cameraList[0].disableMouseInput();
+		else
+			cameraList[0].enableMouseInput();
 		break;
 	case 'd':
 		cameraNo = (cameraNo + 1) % cameraList.size();
@@ -315,23 +368,21 @@ void ofApp::keyPressed(int key) {
 		ofToggleGUI();
 		break;
 	case 'H':
-	case 'h':
-		{
-			bCamPos = true;
-			Vector3 center = boxRover.center();
-			cameraList[0].setPosition(rover.getPosition());
-			cameraList[0].setTarget(rover.getPosition());
-		}
+	case 'h': {
+		bCamPos = true;
+		Vector3 center = boxRover.center();
+		cameraList[0].setPosition(rover.getPosition());
+		cameraList[0].setTarget(rover.getPosition());
+	}
 		break;
 	case 'r':
 		cameraList[cameraNo].reset();
 		break;
 	case 's':
-		if (!pointsArray.empty()){
+		if (!pointsArray.empty()) {
 			saveEditPoints();
 			cout << "Points saved" << endl;
-		}
-		else
+		} else
 			savePicture();
 		break;
 	case 'l':
@@ -340,19 +391,18 @@ void ofApp::keyPressed(int key) {
 			cout << "Existing points cleared";
 			loadEditPoints();
 			cout << "Points loaded" << endl;
-		}
-		else if (pointsArray.size() == 0)
+		} else if (pointsArray.size() == 0)
 			loadEditPoints();
 		break;
 	case 't':
 		setCameraTarget();
 		break;
 	case 'p':
-		if (terrainselected())
+		if (isTerrainSelected())
 			bTerrainSelected = true;
 		else
 			bTerrainSelected = false;
-		if (pointsArray.size()>1) {
+		if (pointsArray.size() > 1) {
 			pathSet = true;
 
 		}
@@ -390,10 +440,13 @@ void ofApp::keyPressed(int key) {
 
 // Delete a specific point
 void ofApp::deletePoint() {
-	cout << "Delete function";
+	if (pointsArray.size() == 0)
+		return;
+
 	pointsArray.erase(pointsArray.begin() + dragPoint);
 	pointBoxes.erase(pointBoxes.begin() + dragPoint);
-	cout << "Delete performed" << endl;
+
+	logfile << "INFO: Removed a control point\n";
 }
 
 void ofApp::toggleWireframeMode() {
@@ -409,14 +462,15 @@ void ofApp::togglePointsDisplay() {
 }
 
 void ofApp::ofToggleGUI() {
-	bGUIshow = !bGUIshow;
+	bShowGUI = !bShowGUI;
 }
 
 void ofApp::keyReleased(int key) {
 
 	switch (key) {
 
-	case 'd':break;
+	case 'd':
+		break;
 	case OF_KEY_ALT:
 		cam.disableMouseInput();
 		bAltKeyDown = false;
@@ -432,11 +486,9 @@ void ofApp::keyReleased(int key) {
 	}
 }
 
-
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y) {
 }
-
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button) {
@@ -446,7 +498,8 @@ void ofApp::mousePressed(int x, int y, int button) {
 	ofVec3f rayPoint = cam.screenToWorld(mouse);
 	ofVec3f rayDir = rayPoint - cam.getPosition();
 	rayDir.normalize();
-	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z), Vector3(rayDir.x, rayDir.y, rayDir.z));
+	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
+			Vector3(rayDir.x, rayDir.y, rayDir.z));
 
 	// Timer and Selection
 	//cout << "Point selected : ";
@@ -460,12 +513,9 @@ void ofApp::mousePressed(int x, int y, int button) {
 	if (bRoverLoaded && boxRover.intersect(ray, -100, 100)) {
 		bRoverSelected = true;
 		bTerrainSelected = false;
-		//bPointSelected = true;
-		cout << "Rover selected" << endl;
-	}
 
-	//If terrain selected but existing point not selected.
-	else if (terrainselected()) {
+		logfile << "INFO: Rover Selected \n";
+	} else if (isTerrainSelected()) {
 		bRoverSelected = false;
 		bTerrainSelected = true;
 		bDragPoint = false;
@@ -479,17 +529,23 @@ void ofApp::mousePressed(int x, int y, int button) {
 			}
 		}
 
-		// Select a new point on the terrain.
-
-		if (pointSelected(root, mars.getMesh(0)) && bDragPoint == false && bAltKeyDown == false) {
-			//if (doPointSelection() && bDragPoint == false) {
-			cout << "Point selected. Check for blue sphere" << endl;
-			pointsArray.push_back(selectedPoint);
-			Box pointBox = Box(Vector3(selectedPoint.x - .1, selectedPoint.y - 1, selectedPoint.z - .1), Vector3(selectedPoint.x + .1, selectedPoint.y + .1, selectedPoint.z + .1));
-			pointBoxes.push_back(pointBox);
-		}
-	}
-	else {
+//		// Select a new point on the terrain.
+//
+//		if (doPointSelection(root, mars.getMesh(0)) && bDragPoint == false
+//				&& bAltKeyDown == false) {
+//
+//			logfile << "INFO: Point Selected. \n";
+//			pointsArray.push_back(selectedPoint);
+//
+//			Box pointBox = Box(
+//					Vector3(selectedPoint.x - .1, selectedPoint.y - 1,
+//							selectedPoint.z - .1),
+//					Vector3(selectedPoint.x + .1, selectedPoint.y + .1,
+//							selectedPoint.z + .1));
+//			pointBoxes.push_back(pointBox);
+//			logfile << "INFO: Point BBox created\n";
+//		}
+	} else {
 		bRoverSelected = false;
 		bTerrainSelected = false;
 	}
@@ -524,14 +580,20 @@ Box ofApp::meshBounds(const ofMesh & mesh) {
 	for (int i = 1; i < n; i++) {
 		ofVec3f v = mesh.getVertex(i);
 
-		if (v.x > max.x) max.x = v.x;
-		else if (v.x < min.x) min.x = v.x;
+		if (v.x > max.x)
+			max.x = v.x;
+		else if (v.x < min.x)
+			min.x = v.x;
 
-		if (v.y > max.y) max.y = v.y;
-		else if (v.y < min.y) min.y = v.y;
+		if (v.y > max.y)
+			max.y = v.y;
+		else if (v.y < min.y)
+			min.y = v.y;
 
-		if (v.z > max.z) max.z = v.z;
-		else if (v.z < min.z) min.z = v.z;
+		if (v.z > max.z)
+			max.z = v.z;
+		else if (v.z < min.z)
+			min.z = v.z;
 	}
 	return Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
 }
@@ -552,9 +614,12 @@ void ofApp::subDivideBox8(const Box &box, vector<Box> & boxList) {
 	//
 	Box b[8];
 	b[0] = Box(min, center);
-	b[1] = Box(b[0].min() + Vector3(xdist, 0, 0), b[0].max() + Vector3(xdist, 0, 0));
-	b[2] = Box(b[1].min() + Vector3(0, 0, zdist), b[1].max() + Vector3(0, 0, zdist));
-	b[3] = Box(b[2].min() + Vector3(-xdist, 0, 0), b[2].max() + Vector3(-xdist, 0, 0));
+	b[1] = Box(b[0].min() + Vector3(xdist, 0, 0),
+			b[0].max() + Vector3(xdist, 0, 0));
+	b[2] = Box(b[1].min() + Vector3(0, 0, zdist),
+			b[1].max() + Vector3(0, 0, zdist));
+	b[3] = Box(b[2].min() + Vector3(-xdist, 0, 0),
+			b[2].max() + Vector3(-xdist, 0, 0));
 
 	boxList.clear();
 	for (int i = 0; i < 4; i++)
@@ -568,44 +633,28 @@ void ofApp::subDivideBox8(const Box &box, vector<Box> & boxList) {
 	}
 }
 
-// generalized recursize implementation of box division
-void ofApp::subDivideBox8_2() {
-
-}
-
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button) {
+
+	logfile << "--------- Inside Mouse Dragged ------------ \n\n";
 
 	if (bDragPoint) {
 
 		bPointSelected = false;
 
-		ofVec3f mouse(mouseX, mouseY);
-		ofVec3f rayPoint = cam.screenToWorld(mouse);
-		ofVec3f rayDir = rayPoint - cam.getPosition();
-		rayDir.normalize();
-		Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
-			Vector3(rayDir.x, rayDir.y, rayDir.z));
+		doPointSelection(root, mars.getMesh(0));
 
-		cout << "Before drag points" << endl;
-		for (int i = 0; i < pointsArray.size(); i++) {
-			cout << pointsArray[i] << endl;
-		}
-
-		cout << "Drag spehre number: " << dragPoint << endl;
-		//pointSelected(root, mars.getMesh(0));
-		doPointSelection();
-
-		// Get selected point from Point Selection () and replace the new point in the list of points.
-		cout << "Old Position :" << pointsArray[dragPoint] << endl;
+		logfile << "Dragging point at: " << pointsArray[dragPoint] << "\n";
 
 		pointsArray[dragPoint] = selectedPoint;
-		cout << "New Position :" << pointsArray[dragPoint] << endl;
 
 		// Create a box for the modified point based on new position and push to box list.
-		Box pointBox = Box(Vector3(selectedPoint.x - .1, selectedPoint.y - 1, selectedPoint.z - .1), Vector3(selectedPoint.x + .1, selectedPoint.y + .1, selectedPoint.z + .1));
+		Box pointBox = Box(
+				Vector3(selectedPoint.x - .1, selectedPoint.y - 1,
+						selectedPoint.z - .1),
+				Vector3(selectedPoint.x + .1, selectedPoint.y + .1,
+						selectedPoint.z + .1));
 		pointBoxes[dragPoint] = pointBox;
-		cout << "After drag points" << endl;
 
 		for (int i = 0; i < pointsArray.size(); i++) {
 			cout << pointsArray[i] << endl;
@@ -614,21 +663,36 @@ void ofApp::mouseDragged(int x, int y, int button) {
 	bDragPoint = false;
 }
 
-
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button) {
+	// Select a new point on the terrain.
+	if (isTerrainSelected()) {
+		if (doPointSelection(root, mars.getMesh(0)) && bDragPoint == false
+				&& bAltKeyDown == false) {
+
+			logfile << "INFO: Point Selected. \n";
+			pointsArray.push_back(selectedPoint);
+
+			Box pointBox = Box(
+					Vector3(selectedPoint.x - .1, selectedPoint.y - 1,
+							selectedPoint.z - .1),
+					Vector3(selectedPoint.x + .1, selectedPoint.y + .1,
+							selectedPoint.z + .1));
+			pointBoxes.push_back(pointBox);
+			logfile << "INFO: Point BBox created\n";
+		}
+	}
 }
 
-
 //-------------------------------------------------------------
-// Check if terrin is selected.
-bool ofApp::terrainselected() {
+// Check if terrain is selected.
+bool ofApp::isTerrainSelected() {
 	ofPoint point;
 	if (mouseIntersectPlane(ofVec3f(0, 0, 0), cam.getZAxis(), point)) {
 		cout << "Terrain selected" << endl;
 		return true;
-	}
-	else return false;
+	} else
+		return false;
 }
 
 //--------------------------------------------------------------
@@ -637,8 +701,7 @@ bool ofApp::terrainselected() {
 void ofApp::setCameraTarget() {
 	if (bRoverSelected) {
 		cameraList[0].setTarget(rover.getPosition());
-	}
-	else if (bPointSelected && !bRoverSelected) {
+	} else if (bPointSelected && !bRoverSelected) {
 		cameraList[0].setTarget(selectedPoint);
 	}
 }
@@ -686,23 +749,29 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 		ofVec3f min = rover.getSceneMin();
 		ofVec3f max = rover.getSceneMax();
 
-		boxRover = Box(Vector3(min.x*0.005 + point.x, min.y*0.005 + point.y, min.z*0.005 + point.z),
-			Vector3(max.x*0.005 + point.x, max.y*0.005 + point.y, max.z*0.005 + point.z));
+		boxRover = Box(
+				Vector3(min.x * 0.005 + point.x, min.y * 0.005 + point.y,
+						min.z * 0.005 + point.z),
+				Vector3(max.x * 0.005 + point.x, max.y * 0.005 + point.y,
+						max.z * 0.005 + point.z));
 
 		cout << "Rover loaded" << rover.getPosition() << endl;
 
 		ofPoint roverPoint = rover.getPosition();
 		Vector3 center = boxRover.center();
 
-		cameraList[1].setPosition(ofVec3f(center.x(), center.y(), center.z()) + ofVec3f(0, 1, 0));
+		cameraList[1].setPosition(
+				ofVec3f(center.x(), center.y(), center.z()) + ofVec3f(0, 1, 0));
 		cameraList[1].setTarget(roverPoint + (0, 0, -2));
 		cameraList[1].rotate(90, 0, 1, 0);
-		cameraList[2].setPosition(roverPoint.x, roverPoint.y + 2, roverPoint.z - 4);
+		cameraList[2].setPosition(roverPoint.x, roverPoint.y + 2,
+				roverPoint.z - 4);
 		cameraList[2].lookAt(roverPoint);
-		cameraList[3].setPosition(roverPoint.x - 4, roverPoint.y + 2, roverPoint.z);
+		cameraList[3].setPosition(roverPoint.x - 4, roverPoint.y + 2,
+				roverPoint.z);
 		cameraList[3].lookAt(roverPoint);
-	}
-	else cout << "Error: Can't load model" << dragInfo.files[0] << endl;
+	} else
+		cout << "Error: Can't load model" << dragInfo.files[0] << endl;
 }
 
 //--------------------------------------------------------------
@@ -710,20 +779,14 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 //
 void ofApp::initLightingAndMaterials() {
 
-	static float ambient[] =
-	{ .5f, .5f, .5, 1.0f };
-	static float diffuse[] =
-	{ 1.0f, 1.0f, 1.0f, 1.0f };
+	static float ambient[] = { .5f, .5f, .5, 1.0f };
+	static float diffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-	static float position[] =
-	{ 5.0, 5.0, 5.0, 0.0 };
+	static float position[] = { 5.0, 5.0, 5.0, 0.0 };
 
-	static float lmodel_ambient[] =
-	{ 1.0f, 1.0f, 1.0f, 1.0f };
+	static float lmodel_ambient[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-	static float lmodel_twoside[] =
-	{ GL_TRUE };
-
+	static float lmodel_twoside[] = { GL_TRUE };
 
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
@@ -732,7 +795,6 @@ void ofApp::initLightingAndMaterials() {
 	glLightfv(GL_LIGHT1, GL_AMBIENT, ambient);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuse);
 	glLightfv(GL_LIGHT1, GL_POSITION, position);
-
 
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
 	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
@@ -743,15 +805,12 @@ void ofApp::initLightingAndMaterials() {
 	glShadeModel(GL_SMOOTH);
 }
 
-
 void ofApp::savePicture() {
 	ofImage picture;
 	picture.grabScreen(0, 0, ofGetWidth(), ofGetHeight());
 	picture.save("screenshot.png");
 	cout << "picture saved" << endl;
 }
-
-
 
 /*******************************************************
  * To save the control points to a file
@@ -760,14 +819,13 @@ void ofApp::saveEditPoints() {
 	ofstream file;
 	file.open(filepath);
 
-	for (int i = 0; i<pointsArray.size(); i++) {
+	for (int i = 0; i < pointsArray.size(); i++) {
 		string control_points = ofToString(pointsArray[i]);
 		file << control_points << endl;
 	}
 
 	file.close();
 }
-
 
 /***************************************************
  * Read the control points from the file
@@ -776,27 +834,24 @@ void ofApp::loadEditPoints() {
 	ifstream buffer(filepath);
 	string line;
 
-	while (getline(buffer, line )) {
+	while (getline(buffer, line)) {
 		ofVec3f editpoints = ofFromString<ofVec3f>(line);
 		pointsArray.push_back(editpoints);
 	}
 }
 
-
 /***********************************************************************
  * Check if the ray cast by the mouse pointer instersects with a plane.
  * if it does, return true, with 'point' of intersection.
  */
-bool ofApp::mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point) {
+bool ofApp::mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm,
+		ofVec3f &point) {
 	ofVec2f mouse(mouseX, mouseY);
 	ofVec3f rayPoint = cam.screenToWorld(mouse);
 	ofVec3f rayDir = rayPoint - cam.getPosition();
 	rayDir.normalize();
 	return (rayIntersectPlane(rayPoint, rayDir, planePoint, planeNorm, point));
 }
-
-
-
 
 /*************************************************************************
  * Create the octree of mesh points.
@@ -821,7 +876,6 @@ void ofApp::createOctree(TreeNode& root, const ofMesh& mesh, int lvl) {
 	// Call sub divide initally on the tree.
 	subdivide(root, mesh, lvl);
 }
-
 
 //--------------------------------------------------------------
 void ofApp::subdivide(TreeNode& node, const ofMesh& mesh, int lvl) {
@@ -851,7 +905,8 @@ void ofApp::subdivide(TreeNode& node, const ofMesh& mesh, int lvl) {
 	lvl -= 1;
 
 	// Exit condition
-	if (node.children.size() == 0) return;
+	if (node.children.size() == 0)
+		return;
 
 	// Call subdivide recursively passing a child as the root node
 	for (int i = 0; i < childCount; ++i) {
@@ -861,7 +916,8 @@ void ofApp::subdivide(TreeNode& node, const ofMesh& mesh, int lvl) {
 
 //--------------------------------------------------------------
 // Code provided in class. isInside() implementation similar to meshBounds()
-void ofApp::getMeshPointsInBox(const ofMesh &mesh, const vector<int>& points, Box & box, vector<int>& pointsRtn) {
+void ofApp::getMeshPointsInBox(const ofMesh &mesh, const vector<int>& points,
+		Box & box, vector<int>& pointsRtn) {
 
 	int count = 0;
 
@@ -876,7 +932,7 @@ void ofApp::getMeshPointsInBox(const ofMesh &mesh, const vector<int>& points, Bo
 
 //--------------------------------------------------------------
 // Selection with the OctTree
-bool ofApp::pointSelected(TreeNode& node, const ofMesh& mesh) {
+bool ofApp::doPointSelection(TreeNode& node, const ofMesh& mesh) {
 
 	// Initialize ray and get current mouse position.
 	ofVec3f mouse(mouseX, mouseY);
@@ -884,10 +940,11 @@ bool ofApp::pointSelected(TreeNode& node, const ofMesh& mesh) {
 	ofVec3f rayDir = rayPoint - cam.getPosition();
 	rayDir.normalize();
 	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
-		Vector3(rayDir.x, rayDir.y, rayDir.z));
+			Vector3(rayDir.x, rayDir.y, rayDir.z));
 
 	// If ray intersects with point and only one point is present in node. Exit condition not optimal
-	if (node.box.intersect(ray, -100, 100) && node.points.size() == 1 && bTerrainSelected) {
+	if (node.box.intersect(ray, -100, 100) && node.points.size() == 1
+			&& bTerrainSelected) {
 		bPointSelected = true;
 		selectedPoint = mesh.getVertex(node.points[0]);
 	}
@@ -895,13 +952,11 @@ bool ofApp::pointSelected(TreeNode& node, const ofMesh& mesh) {
 	// Iterate through the tree and call recursively for each child.
 	for (int i = 0; i < node.children.size(); i++) {
 		if (node.children[i].box.intersect(ray, -100, 100)) {
-			pointSelected(node.children[i], mesh);
+			doPointSelection(node.children[i], mesh);
 		}
 	}
 	return bPointSelected;
 }
-
-
 
 //--------------------------------------------------------------
 //Initial selection based on mesh points. 
