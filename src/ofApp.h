@@ -4,6 +4,7 @@
 #include  "ofxAssimpModelLoader.h"
 #include "box.h"
 #include "ray.h"
+//#include "Octree.h"
 #include <vector>
 #include <ofxGui.h>
 #include <iostream>
@@ -63,7 +64,7 @@ public:
 	void togglePointsDisplay();
 	void toggleSelectTerrain();
 	void setCameraTarget();
-	bool  doPointSelection();
+	bool doPointSelection();
 	void drawBox(const Box &box);
 	Box meshBounds(const ofMesh &);
 	void subDivideBox8(const Box &b, vector<Box> & boxList);
@@ -91,15 +92,16 @@ public:
 	ofVec3f intersectPoint;
 	const float selectionRange = 4.0;
 	vector<Box> boxList;
+//	Octree octree;
 	TreeNode root;
 	Box returnBox;
 
 	void getMeshPointsInBox(const ofMesh &mesh, const vector<int>& points, Box & box, vector<int>& pointsRtn);
 
 	void createOctree(TreeNode& root, const ofMesh& mesh, int lvl);
-	
+
 	void subdivide(TreeNode& node, const ofMesh& mesh,  int lvl);
-	
+
 	// drawOcttree function not used. Another implementation performed.
 	void drawOctree(TreeNode & node, int numLevels) {
 		if (node.children.size() == 0){
@@ -116,7 +118,7 @@ public:
 	// log file
 	ofstream logfile;
 
-	bool doPointSelection(TreeNode& tree, const ofMesh& mesh);
+//	bool doPointSelectionOctree();
 	bool bRoverSelected = false;
 	bool isTerrainSelected();
 	vector<ofPoint> pointsArray;
@@ -159,6 +161,7 @@ public:
 	void ofToggleGUI();
 	void saveEditPoints();
 	void loadEditPoints();
+	bool doPointSelection(TreeNode& node, const ofMesh& mesh);
 
 	string filepath = "control_points.txt";
 };

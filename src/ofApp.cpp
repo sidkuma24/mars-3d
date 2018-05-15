@@ -35,10 +35,10 @@
 #include "ofApp.h"
 #include "string"
 #include "Util.h"
-#include <ctime>    // For time()#include <cstdlib>  // For srand() and rand()#include <vector>using namespace std;
-
+#include <ctime>    // For time()#include <cstdlib>  // For srand() and rand()#include <vector>//#include "Octree.h"using namespace std;
 #include <ctime>
 #include <chrono>
+
 //--------------------------------------------------------------
 // setup scene, lighting, state and load geometry
 //
@@ -64,8 +64,8 @@ void ofApp::setup() {
 	// Camera setup
 	ofVec3f camAxis = ofPoint(0, 0, 1) - ofPoint(0, 0, 0);
 	cam.setDistance(20);
-	cam.setPosition(0,0,10);
-	cam.lookAt(ofPoint(0,0,0));
+	cam.setPosition(0, 0, 10);
+	cam.lookAt(ofPoint(0, 0, 0));
 	cam.setNearClip(.1);
 	cam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
 	cam.disableMouseInput();
@@ -110,9 +110,10 @@ void ofApp::setup() {
 	boundingBox = meshBounds(mars.getMesh(0));
 
 	createOctree(root, mars.getMesh(0), 8);
+//	octree = Octree();
+//	octree.create(mars.getMesh(0),9);
 	logfile << "INFO: Octree created for the mesh \n";
 	//myTextFile = ofFile(filePath);
-
 	gui.setup();
 	gui.add(speed.setup("Speed", 0.02, 0.01, 0.1));
 	logfile << "INFO: GUI added to screen \n";
@@ -799,10 +800,10 @@ void ofApp::initLightingAndMaterials() {
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
 	glLightModelfv(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
 
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
+	glEnable (GL_LIGHTING);
+	glEnable (GL_LIGHT0);
 	//	glEnable(GL_LIGHT1);
-	glShadeModel(GL_SMOOTH);
+	glShadeModel (GL_SMOOTH);
 }
 
 void ofApp::savePicture() {
@@ -895,7 +896,7 @@ void ofApp::subdivide(TreeNode& node, const ofMesh& mesh, int lvl) {
 		// Only if a point exists, create a node
 		if (boxPoints.size() > 0) {
 			TreeNode childNode;
-			childNode.setBox(boxList[i]); // Errors during rendering. 
+			childNode.setBox(boxList[i]); // Errors during rendering.
 			// finalBoxList.push_back(boxList[i]); // Creating a global variable to render
 			childNode.setPoints(boxPoints);
 			node.setChild(childNode);
@@ -923,7 +924,7 @@ void ofApp::getMeshPointsInBox(const ofMesh &mesh, const vector<int>& points,
 
 	for (int i = 0; i < points.size(); ++i) {
 		ofVec3f v = mesh.getVertex(points[i]);
-		if (box.isInside(Vector3(v.x, v.y, v.z))) {
+		if (box.inside(Vector3(v.x, v.y, v.z))) {
 			count++;
 			pointsRtn.push_back(points[i]);
 		}
@@ -959,9 +960,9 @@ bool ofApp::doPointSelection(TreeNode& node, const ofMesh& mesh) {
 }
 
 //--------------------------------------------------------------
-//Initial selection based on mesh points. 
+//Initial selection based on mesh points.
 //
-//  Select Target Point on Terrain by comparing distance of mouse to 
+//  Select Target Point on Terrain by comparing distance of mouse to
 //  vertice points projected onto screenspace.
 //  if a point is selected, return true, else return false;
 //
@@ -978,7 +979,7 @@ bool ofApp::doPointSelection() {
 	vector<ofVec3f> selection;
 
 	// We check through the mesh vertices to see which ones
-	// are "close" to the mouse point in screen space.  If we find 
+	// are "close" to the mouse point in screen space.  If we find
 	// points that are close, we store them in a vector (dynamic array)
 	//
 	for (int i = 0; i < n; i++) {
@@ -999,7 +1000,7 @@ bool ofApp::doPointSelection() {
 		float distance = 0;
 		for (int i = 0; i < selection.size(); i++) {
 			ofVec3f point = cam.worldToCamera(selection[i]);
-			// In camera space, the camera is at (0,0,0), so distance from 
+			// In camera space, the camera is at (0,0,0), so distance from
 			// the camera is simply the length of the point vector
 			//
 			float curDist = point.length();
@@ -1012,3 +1013,22 @@ bool ofApp::doPointSelection() {
 	}
 	return bPointSelected;
 }
+//bool ofApp::doPointSelectionOctree() {
+//
+////	Initialize ray and get current mouse position.
+//	ofVec3f mouse(mouseX, mouseY);
+//	ofVec3f rayPoint = cam.screenToWorld(mouse);
+//	ofVec3f rayDir = rayPoint - cam.getPosition();
+//	rayDir.normalize();
+//	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
+//			Vector3(rayDir.x, rayDir.y, rayDir.z));
+//
+//	TreeNode node;
+//	bPointSelected = octree.intersect(ray, root, node);
+//	ofMesh mesh = mars.getMesh(0);
+//	selectedPoint = mesh.getVertex(node.points[0]);
+//
+//
+//	return bPointSelected;
+//
+//}

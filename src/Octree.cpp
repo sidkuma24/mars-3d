@@ -5,7 +5,8 @@
 //
 
 #include "Octree.h"
-
+#include <vector>
+#include "box.h"
 
 // draw Octree (recursively)
 //
@@ -145,6 +146,33 @@ void Octree::create(const ofMesh & mesh, int numLevels) {
 //
 void Octree::subdivide(TreeNode & node, int numLevels, int level) {
 	
+	if(level >= numLevels){
+		return;
+	}
+
+	vector<Box> boxList;
+	subDivideBox8(node.box, boxList);
+
+	for(int i=0; i < boxList.size(); ++i){
+		vector<int> boxPoints;
+		getMeshPointsInBox(node.points, boxList[i], boxPoints);
+
+		if(boxPoints.size() > 0){
+			TreeNode newNode;
+			newNode.box = boxList[i];
+			newNode.points = boxPoints;
+			node.children.push_back(newNode);
+		}
+	}
+	level++;
+	for(int i=0; i < node.children.size(); ++i){
+		subdivide(node.children[i], numLevels, level);
+	}
+
+
+
+
+
 }
 
 //  primary recursive function to test for ray intersection, returns
@@ -159,7 +187,18 @@ void Octree::subdivide(TreeNode & node, int numLevels, int level) {
 //
 //
 bool Octree::intersect(const Ray &ray, const TreeNode & node, TreeNode & nodeRtn) {
-
+	if(node.box.intersect(ray, -100, 100)){
+		if(node.points.size() == 1){
+			nodeRtn = node;
+			return true;
+		}else{
+			for(int i=0; i < node.children.size(); ++i){
+				intersect(ray, node.children[i], nodeRtn);
+			}
+		}
+	}else{
+		return false;
+	}
 }
 
 

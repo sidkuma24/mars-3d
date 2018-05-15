@@ -31,7 +31,7 @@ class Box {
 	Vector3 min() { return parameters[0]; }
 	Vector3 max() { return parameters[1]; }
 
-	bool isInside(const Vector3 point){
+	bool inside(const Vector3 point){
 		Vector3 min = this->min();
 		Vector3 max = this->max();
 

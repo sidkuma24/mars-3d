@@ -24,6 +24,7 @@
 #include "ofMain.h"
 #include "box.h"
 #include "ray.h"
+#include <vector>
 
 
 
