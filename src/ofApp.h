@@ -81,7 +81,7 @@ public:
 	bool bWireframe;
 	bool bDisplayPoints;
 	bool bPointSelected;
-
+	bool bToggleTranslate;
 	bool bRoverLoaded;
 	bool bTerrainSelected;
 
@@ -116,7 +116,7 @@ public:
 
 	bool pointSelected(TreeNode& tree, const ofMesh& mesh);	
 	bool bRoverSelected = false;
-	bool terrainselected();
+	bool isTerrainSelected();
 	vector<ofPoint> pointsArray;
 	vector<Box> pointBoxes;
 	
@@ -160,6 +160,7 @@ public:
 	string filepath = "control_points.txt";
 
 	bool roverbbox(Box& bbox);
+	void createRoverPath();
 };
 
 

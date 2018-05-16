@@ -23,20 +23,20 @@
 
 /*******************************************************************************************
  * Key Bindings:
- *	'p' - Generate the paths and animate the rover.
+ *	'p' - Generate the paths
  *	'd' - Alternate between cameras.
  *	'h' - first person camera.
  *	'z' - Toggle GUI.
  *	'r' - reset camera.
  *	'del' - delete a point.
  *	'g' - clear paths and points.
+ *	'Return / Enter ' : Animate Rover
  ********************************************************************************************/
 
 #include "ofApp.h"
 #include "string"
 #include "Util.h"
 #include <ctime>    // For time()#include <cstdlib>  // For srand() and rand()#include <vector>
-
 using namespace std;
 
 //--------------------------------------------------------------
@@ -53,6 +53,7 @@ void ofApp::setup() {
 	bCtrlKeyDown = false;
 	bRoverLoaded = false;
 	bTerrainSelected = true;
+	bToggleTranslate = false;
 	//	ofSetWindowShape(1024, 768);
 
 	// Camera setup
@@ -113,13 +114,14 @@ void ofApp::setup() {
 
 	logfile << "INFO: ofApp setup complete\n";
 
+
 }
 
 //--------------------------------------------------------------
 // incrementally update scene (animation)
 //
 void ofApp::update() {
-	if (pathSet && bRoverLoaded) {
+	if (pathSet && bRoverLoaded && bToggleTranslate) {
 		translate();
 	}
 
@@ -206,18 +208,7 @@ void ofApp::draw() {
 
 	// Generate Path upon pressing 'p' and render said path.
 	if (pathSet) {
-		path.clear();
-		if (pointsArray.size() < 1)
-			return;
-		path.addVertex(pointsArray[0]);
-		path.curveTo(pointsArray[0]);
-		for (int i = 1; i < pointsArray.size(); i++) {
-			path.addVertex(pointsArray[i]);
-			path.curveTo(pointsArray[i].x, pointsArray[i].y, pointsArray[i].z);
-		}
-		path.curveTo(pointsArray.back());
 		path.draw();
-		pathTotalLength = path.getLengthAtIndex(pointsArray.size() - 1);
 	}
 
 	ofPopMatrix();
@@ -232,7 +223,27 @@ void ofApp::draw() {
 		ofEnableDepthTest();
 	}
 
+}
 
+void ofApp::createRoverPath() {
+	path.clear();
+	if (pointsArray.size() < 1)
+		return;
+	path.addVertex(pointsArray[0]);
+	path.curveTo(pointsArray[0]);
+	for (int i = 1; i < pointsArray.size(); i++) {
+		path.addVertex(pointsArray[i]);
+		path.curveTo(pointsArray[i].x, pointsArray[i].y, pointsArray[i].z);
+	}
+	path.curveTo(pointsArray.back());
+	cout << "n control points:" << pointsArray.size() << endl;
+
+
+	pathTotalLength = path.getLengthAtIndex(pointsArray.size() - 1);
+	cout << "Path size:" << path.size() << endl;
+	for(int i=0; i < path.size(); ++i){
+		cout << "Path angle:" << path.getAngleAtIndex(i) << endl;
+	}
 }
 
 // Move the rover. Controlled in update()
@@ -243,7 +254,7 @@ void ofApp::translate() {
 
 	//If current position exceeds path length, reset the current postion to starting point of path
 	if (currentPosition >= pathTotalLength) {
-		currentPosition = 0;
+		speed = 0;
 	}
 
 	int index = path.getIndexAtLength(currentPosition);
@@ -254,6 +265,7 @@ void ofApp::translate() {
 
 		// Calculate angle for orientation.
 		float rotateAngle = path.getAngleAtIndex(index);
+
 		rover.setRotation(rotations, rotateAngle, axis.x, axis.y, axis.z);
 		prevIndex = index;
 	}
@@ -298,6 +310,7 @@ void ofApp::drawAxis(ofVec3f location) {
 
 void ofApp::keyPressed(int key) {
 	switch (key) {
+
 	case 'C':
 	case 'c':
 		if (cameraList[0].getMouseInputEnabled())
@@ -348,13 +361,14 @@ void ofApp::keyPressed(int key) {
 		setCameraTarget();
 		break;
 	case 'p':
-		if (terrainselected())
+		if (isTerrainSelected())
 			bTerrainSelected = true;
 		else
 			bTerrainSelected = false;
+
 		if (pointsArray.size() > 1) {
 			pathSet = true;
-
+			createRoverPath();
 		}
 		break;
 	case 'g':
@@ -382,6 +396,12 @@ void ofApp::keyPressed(int key) {
 	case OF_KEY_DEL:
 		if (bDragPoint)
 			deletePoint();
+		break;
+	case OF_KEY_RETURN:
+		if (bToggleTranslate)
+			bToggleTranslate = false;
+		else
+			bToggleTranslate = true;
 		break;
 	default:
 		break;
@@ -440,7 +460,7 @@ void ofApp::mouseMoved(int x, int y) {
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button) {
 
-	//Box Intersect 
+	//Ray for box intersect
 	ofVec3f mouse(mouseX, mouseY);
 	ofVec3f rayPoint = cam.screenToWorld(mouse);
 	ofVec3f rayDir = rayPoint - cam.getPosition();
@@ -448,29 +468,20 @@ void ofApp::mousePressed(int x, int y, int button) {
 	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
 			Vector3(rayDir.x, rayDir.y, rayDir.z));
 
-	// Timer and Selection
-	//cout << "Point selected : ";
-	//float time1 = ofGetElapsedTimeMicros();
-
-	// cout << "Point selected" << endl;
-	//float time2 = ofGetElapsedTimeMicros();
-	//cout << "Elapsed time is : " << time2 - time1 << endl;
-
-	// Upon rover selection
+	// Rover selection
 	if (bRoverLoaded && boxRover.intersect(ray, -200, 200)) {
 		bRoverSelected = true;
 		bTerrainSelected = false;
-		//bPointSelected = true;
 		cout << "Rover selected" << endl;
 	}
 
-	//If terrain selected but existing point not selected.
-	else if (terrainselected()) {
+	//handle terrain and point selection
+	else if (isTerrainSelected()) {
 		bRoverSelected = false;
 		bTerrainSelected = true;
 		bDragPoint = false;
 
-		// Selection for existing points. If the ray intersects with the box of a specific point, point is selected.
+		// selecting among control points
 		for (int i = 0; i < pointBoxes.size(); i++) {
 			if (pointBoxes[i].intersect(ray, -100, 100)) {
 				bDragPoint = true;
@@ -479,13 +490,13 @@ void ofApp::mousePressed(int x, int y, int button) {
 			}
 		}
 
-		// Select a new point on the terrain.
-
+		// selecting new control points
 		if (pointSelected(root, mars.getMesh(0)) && bDragPoint == false
 				&& bAltKeyDown == false) {
 			//if (doPointSelection() && bDragPoint == false) {
 			cout << "Point selected. Check for blue sphere" << endl;
-			pointsArray.push_back(selectedPoint);
+//			if(pointsArray.size() > 0 && pointsArray.back() != selectedPoint)
+				pointsArray.push_back(selectedPoint);
 			Box pointBox = Box(
 					Vector3(selectedPoint.x - .1, selectedPoint.y - 1,
 							selectedPoint.z - .1),
@@ -581,38 +592,23 @@ void ofApp::subDivideBox8(const Box &box, vector<Box> & boxList) {
 	}
 }
 
-// generalized recursize implementation of box division
-void ofApp::subDivideBox8_2() {
-
-}
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button) {
+	ofVec3f mouse(mouseX, mouseY);
+	cout << mouseX <<  ", " << mouseY << endl;
+	cout << "bDragPoint " << bDragPoint << endl;
 
 	if (bDragPoint) {
 
 		bPointSelected = false;
-
-		ofVec3f mouse(mouseX, mouseY);
-		ofVec3f rayPoint = cam.screenToWorld(mouse);
-		ofVec3f rayDir = rayPoint - cam.getPosition();
-		rayDir.normalize();
-		Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
-				Vector3(rayDir.x, rayDir.y, rayDir.z));
-
-		cout << "Before drag points" << endl;
-		for (int i = 0; i < pointsArray.size(); i++) {
-			cout << pointsArray[i] << endl;
-		}
-
-		cout << "Drag spehre number: " << dragPoint << endl;
-		//pointSelected(root, mars.getMesh(0));
-		doPointSelection();
+		pointSelected(root, mars.getMesh(0));
 
 		// Get selected point from Point Selection () and replace the new point in the list of points.
 		cout << "Old Position :" << pointsArray[dragPoint] << endl;
 
 		pointsArray[dragPoint] = selectedPoint;
+
 		cout << "New Position :" << pointsArray[dragPoint] << endl;
 
 		// Create a box for the modified point based on new position and push to box list.
@@ -622,13 +618,8 @@ void ofApp::mouseDragged(int x, int y, int button) {
 				Vector3(selectedPoint.x + .1, selectedPoint.y + .1,
 						selectedPoint.z + .1));
 		pointBoxes[dragPoint] = pointBox;
-		cout << "After drag points" << endl;
-
-		for (int i = 0; i < pointsArray.size(); i++) {
-			cout << pointsArray[i] << endl;
-		}
 	}
-	bDragPoint = false;
+//	bDragPoint = false;
 }
 
 //--------------------------------------------------------------
@@ -637,7 +628,7 @@ void ofApp::mouseReleased(int x, int y, int button) {
 
 //-------------------------------------------------------------
 // Check if terrin is selected.
-bool ofApp::terrainselected() {
+bool ofApp::isTerrainSelected() {
 	ofPoint point;
 	if (mouseIntersectPlane(ofVec3f(0, 0, 0), cam.getZAxis(), point)) {
 		cout << "Terrain selected" << endl;
